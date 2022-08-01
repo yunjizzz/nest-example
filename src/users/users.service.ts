@@ -1,6 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import { EmailService } from 'src/email/email.service';
+import { Connection, Repository } from 'typeorm';
+import { ulid } from 'ulid';
 import * as uuid from 'uuid';
+import { UserEntity } from './user.entity';
 import { UserInfo } from './UserInfo';
 
 
@@ -12,8 +16,12 @@ import { UserInfo } from './UserInfo';
 @Injectable()
 export class UsersService {
   
-  constructor(private emailService: EmailService){}
-  
+  constructor(
+    private emailService: EmailService
+    , @InjectRepository(UserEntity) private usersRepository: Repository<UserEntity>
+    , private connection: Connection,
+    ){}
+
   async getUserInfo(userId: string): Promise<UserInfo> {
       // 1. userId를 가진 유저가 존재하는지 DB에서 확인하고 없으면 에러
       // 2. 조회된 데이터를 UserInfo 타입으로 전달.
@@ -27,22 +35,53 @@ export class UsersService {
 
   async createUser(name: string, email: string, password: string){
     //await this.checkUserExists(email);
+    //await this.sendMemberJoinEmail(email,signupVerifyToken);
+
+    const userExist = await this.checkUserExists(email);
+    if (userExist) {
+      throw new UnprocessableEntityException('해당 이메일로는 가입할 수 없습니다.');
+    }
 
     const signupVerifyToken = uuid.v1();
 
     await this.saveUser(name,email,password,signupVerifyToken);
-    await this.sendMemberJoinEmail(email,signupVerifyToken);
+    
   }
 
 
-  private checkUserExists(email: string) {
-    throw new Error('Method not implemented.'); //TODO DB 연동 후 구현
-  }
+ private async checkUserExists(emailAddress: string): Promise<boolean> {
+  const user = await this.usersRepository.findOne({ email: emailAddress });
+
+  return user !== undefined;
+}
 
   
-  private saveUser(name: string, email: string, password: string, signupVerifyToken: string) {
-    return ; //TODO DB 연동 후 구현
+  private async saveUser(name: string, email: string, password: string, signupVerifyToken: string) {
+    const user = new UserEntity();
+    user.id = ulid();
+    user.name = name;
+    user.email = email;
+    user.password = password;
+    user.signupVerifyToken = signupVerifyToken;
+    await this.usersRepository.save(user);
   }
+
+  // 트랜잭션을 이용한 요청
+  private async saveUserUsingTransaction(name: string, email: string, password: string, signupVerifyToken: string) {
+    await this.connection.transaction(async manager => {
+      const user = new UserEntity();
+      user.id = ulid();
+      user.name = name;
+      user.email = email;
+      user.password = password;
+      user.signupVerifyToken = signupVerifyToken;
+  
+      await manager.save(user);
+  
+      // throw new InternalServerErrorException();
+    })
+  }
+
   
   private async sendMemberJoinEmail(email: string, signupVerifyToken: string) {
     await this.emailService.sendMemberJoinVerification(email,signupVerifyToken);

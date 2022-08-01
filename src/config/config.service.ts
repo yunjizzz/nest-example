@@ -29,11 +29,12 @@ export class ConfigService {
       database: 'test',
       entities: ['dist/**/*.entity{.ts,.js}'],
       migrationsTableName: 'migrations',
-      migrations: ['src/migration/*.ts'],
+      migrations: ['dist/migrations/*{.ts,.js}'],
       cli: {
         migrationsDir: 'src/migration',
       },
       ssl: !this.isDevelopment(),
+      synchronize: false
     };
   }
 }
