@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Logger, Param, Post, Query, Redirect, Req, Res } from '@nestjs/common';
 import { ValidationPipe } from 'src/config/ValidationPipe';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserLoginDto } from './dto/user-login.dto';
@@ -38,10 +38,29 @@ export class UsersController {
     }
 
     //특정 회원 정보 가져오기
-    @Get('/:id')
-    async getUserInfo(@Param('id') userId: string):Promise<UserInfo>{
+    // @Get('/:id')
+    // async getUserInfo(@Param('id') userId: string):Promise<UserInfo>{
         
-        return await this.usersService.getUserInfo(userId);
+    //     return await this.usersService.getUserInfo(userId);
+    // }
+
+    @Get('/req')
+    test(@Req() request){
+        console.log(request);
     }
 
+    @Get('/test')
+    @Header('Custom', 'Test Header')
+    findAll(@Res() res) {
+        return res.status(201).send('success');
+    }
+
+
+    @Redirect('https://naver.com', 301)
+    @Get('/naver')
+    findOne() {
+        console.log('naver test');
+    }
+
+    s
 }
